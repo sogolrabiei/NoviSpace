@@ -45,31 +45,18 @@ NoviSpace is a web application that lets you **walk through your home with your 
 
 NoviSpace uses a **split-brain architecture** to achieve both real-time conversational AI and structured data extraction:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    User (Browser)                       │
-│              Camera + Mic + Transcript UI               │
-└────────────────────┬────────────────────────────────────┘
-                     │ WebSocket (video frames + audio)
-                     ↓
-┌─────────────────────────────────────────────────────────┐
-│              Backend (Node.js + Express)                │
-│                  WebSocket Server                       │
-└─────┬───────────────────────────────────────────┬───────┘
-      │                                           │
-      ↓                                           ↓
-┌─────────────────────┐              ┌──────────────────────┐
-│ INTERACTION LAYER   │              │  REASONING LAYER     │
-│  Gemini Live API    │              │  Gemini 2.0 Flash    │
-│  (WebSocket)        │              │  (REST API)          │
-├─────────────────────┤              ├──────────────────────┤
-│ • Audio/video input │              │ • Analyzes transcript│
-│ • Real-time voice   │              │ • Extracts bookmarks │
-│ • Transcription     │              │ • Finds measurements │
-│ • NO tool calling   │              │ • Tracks budget      │
-│   (unstable)        │              │ • Deduplication      │
-└─────────────────────┘              └──────────────────────┘
-```
+![NoviSpace Architecture Diagram](docs/NoviSpace%20Diagram.png)
+
+The system consists of:
+- **User (Browser)**: Camera + microphone input, real-time transcript display
+- **Cloud Run Services**: 
+  - `novispace-frontend` (Next.js 14)
+  - `novispace-backend` (Node.js + Express + WebSocket)
+- **Split-Brain Orchestrator**:
+  - **Interaction Layer**: Gemini Live API (real-time voice, native audio I/O, no tool calling)
+  - **Reasoning Layer**: Gemini 2.0 Flash REST API (debounced analysis, extracts bookmarks/measurements/budget)
+- **Infrastructure**: Google Cloud (Secret Manager, Artifact Registry, Cloud Build, Terraform)
+- **Output**: Session data persisted to localStorage, shopping links, report page
 
 **Why Split-Brain?**
 - Gemini Live's native tool calling is unstable (causes session crashes)
