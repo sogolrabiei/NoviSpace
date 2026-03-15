@@ -33,9 +33,12 @@ export default function HomePage() {
             <a href="#how-it-works" className="hover:text-foreground transition-colors">
               How It Works
             </a>
-            <a href="#faq" className="hover:text-foreground transition-colors">
-              FAQ
-            </a>
+            <Link href="/quiz" className="hover:text-foreground transition-colors">
+              Style Quiz
+            </Link>
+            <Link href="/sessions" className="hover:text-foreground transition-colors">
+              My Sessions
+            </Link>
           </div>
           <Link href="/consult">
             <Button size="sm">Start Consultation</Button>
@@ -58,7 +61,8 @@ export default function HomePage() {
           <p className="mx-auto mb-10 max-w-xl text-lg text-muted-foreground">
             Walk through your space with your camera. Get real-time,
             interruptible design advice from an AI that sees your room and
-            understands architectural constraints.
+            understands architectural constraints. Get a personalized design
+            report with shopping links when you&apos;re done.
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link href="/consult">
@@ -67,11 +71,12 @@ export default function HomePage() {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <a href="#how-it-works">
-              <Button variant="outline" size="lg">
-                See How It Works
+            <Link href="/quiz">
+              <Button variant="outline" size="lg" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Take Style Quiz First
               </Button>
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -101,14 +106,14 @@ export default function HomePage() {
                 desc: "Have a real conversation. Interrupt anytime. The agent pivots instantly to your needs.",
               },
               {
-                icon: Eye,
-                title: "Spatial Intelligence",
-                desc: "Understands structural columns, ceiling height, traffic flow, and natural light patterns.",
+                icon: MessageSquare,
+                title: "Live Transcript & Report",
+                desc: "Full conversation transcript, bookmarked ideas, and a design report with shopping links.",
               },
               {
                 icon: Shield,
-                title: "Professional Grade",
-                desc: "Advice grounded in architectural principles — specific dimensions, materials, and layouts.",
+                title: "Budget-Aware",
+                desc: "Set your budget and get recommendations that fit. The AI tracks spending in real-time.",
               },
             ].map((f) => (
               <Card key={f.title} className="border-border/50 bg-card/50 transition-shadow hover:shadow-md">
@@ -146,12 +151,12 @@ export default function HomePage() {
               {
                 step: "02",
                 title: "Walk & Talk",
-                desc: "Point your camera at any space. Ask about layouts, furniture, lighting — anything.",
+                desc: "Point your camera at any space. Ask about layouts, furniture, lighting — anything. Bookmark ideas you love.",
               },
               {
                 step: "03",
-                title: "Get Expert Advice",
-                desc: "The AI responds in real-time with specific, actionable design recommendations.",
+                title: "Get Your Report",
+                desc: "End the session and get a design report with shopping links to Amazon, Wayfair, IKEA, and more.",
               },
             ].map((s) => (
               <div key={s.step} className="text-center">
@@ -211,12 +216,20 @@ export default function HomePage() {
             No uploads. No measuring tapes. Just point your camera and start
             talking.
           </p>
-          <Link href="/consult">
-            <Button size="lg" className="gap-2">
-              Start Live Consultation
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <Link href="/consult">
+              <Button size="lg" className="gap-2">
+                Start Live Consultation
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/quiz">
+              <Button variant="outline" size="lg" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Discover Your Style
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -227,7 +240,11 @@ export default function HomePage() {
             <Sparkles className="h-4 w-4 text-accent" />
             NoviSpace
           </div>
-          <p>Built with Gemini Live API on Google Cloud</p>
+          <div className="flex items-center gap-6">
+            <Link href="/sessions" className="hover:text-foreground transition-colors">My Sessions</Link>
+            <Link href="/quiz" className="hover:text-foreground transition-colors">Style Quiz</Link>
+            <p>Built with Gemini Live API</p>
+          </div>
         </div>
       </footer>
     </div>

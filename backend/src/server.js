@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
+const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 const { createGeminiSession } = require("./services/gemini-live");
 
@@ -14,11 +15,11 @@ app.use(express.json());
 
 // Root route
 app.get("/", (req, res) => {
-  res.json({ 
+  res.json({
     service: "NoviSpace Backend",
     status: "running",
     websocket: "/ws",
-    timestamp: new Date().toISOString() 
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -32,9 +33,20 @@ const server = http.createServer(app);
 // WebSocket server for real-time communication
 const wss = new WebSocketServer({ server, path: "/ws" });
 
+function send(ws, data) {
+  if (ws.readyState === ws.OPEN) {
+    ws.send(JSON.stringify(data));
+  }
+}
+
 wss.on("connection", (ws) => {
   console.log("[WS] Client connected");
   let geminiSession = null;
+  let latestVideoFrame = null; // Store latest frame for before/after
+  let sessionTranscript = []; // Accumulate transcript for report
+  let sessionBookmarks = []; // Accumulate bookmarks
+  let sessionMeasurements = []; // Accumulate measurements
+  let sessionBudget = null;
 
   ws.on("message", async (raw) => {
     try {
@@ -45,38 +57,59 @@ wss.on("connection", (ws) => {
           if (geminiSession) {
             geminiSession.close();
           }
+
+          // Store budget info and style profile from client
+          sessionBudget = msg.budget || null;
+          const styleProfile = msg.styleProfile || null;
+          sessionTranscript = [];
+          sessionBookmarks = [];
+          sessionMeasurements = [];
+
+          console.log("[Server] Starting session with budget:", sessionBudget, "and style profile:", styleProfile);
+
           geminiSession = await createGeminiSession({
+            budget: sessionBudget,
+            styleProfile: styleProfile,
+
             onAudio: (b64Audio) => {
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: "audio", data: b64Audio }));
-              }
+              send(ws, { type: "audio", data: b64Audio });
             },
+
             onText: (text) => {
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: "text", data: text }));
-              }
+              send(ws, { type: "text", data: text });
             },
+
             onInterrupted: () => {
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: "interrupted" }));
-              }
+              send(ws, { type: "interrupted" });
             },
+
             onTurnComplete: () => {
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: "turn_complete" }));
-              }
+              send(ws, { type: "turn_complete" });
             },
+
             onError: (err) => {
               console.error("[Gemini] Error:", err.message);
-              if (ws.readyState === ws.OPEN) {
-                ws.send(
-                  JSON.stringify({ type: "error", data: err.message })
-                );
-              }
+              send(ws, { type: "error", data: err.message });
+            },
+
+            // Transcription callback — relay to frontend and accumulate
+            onTranscript: (speaker, text) => {
+              send(ws, { type: "transcript", speaker, text });
+              sessionTranscript.push({ speaker, text, timestamp: Date.now() });
+            },
+
+            // Tool call handler
+            onToolCall: (name, args, callId) => {
+              handleToolCall(ws, geminiSession, name, args, callId, {
+                sessionBookmarks,
+                sessionMeasurements,
+                latestVideoFrame,
+              });
             },
           });
-          ws.send(JSON.stringify({ type: "session_started" }));
-          console.log("[WS] Gemini session started");
+
+          send(ws, { type: "session_started" });
+          console.log("[WS] Gemini session started with budget:", sessionBudget?.value || "none");
           break;
 
         case "audio":
@@ -89,6 +122,8 @@ wss.on("connection", (ws) => {
           if (geminiSession) {
             geminiSession.sendVideo(msg.data);
           }
+          // Always store the latest frame for before/after generation
+          latestVideoFrame = msg.data;
           break;
 
         case "end_session":
@@ -96,8 +131,8 @@ wss.on("connection", (ws) => {
             geminiSession.close();
             geminiSession = null;
           }
-          ws.send(JSON.stringify({ type: "session_ended" }));
-          console.log("[WS] Session ended by client");
+          send(ws, { type: "session_ended" });
+          console.log("[WS] Session ended. Transcript entries:", sessionTranscript.length, "Bookmarks:", sessionBookmarks.length);
           break;
 
         default:
@@ -105,11 +140,7 @@ wss.on("connection", (ws) => {
       }
     } catch (err) {
       console.error("[WS] Error processing message:", err);
-      if (ws.readyState === ws.OPEN) {
-        ws.send(
-          JSON.stringify({ type: "error", data: "Failed to process message" })
-        );
-      }
+      send(ws, { type: "error", data: "Failed to process message" });
     }
   });
 
@@ -129,6 +160,101 @@ wss.on("connection", (ws) => {
     }
   });
 });
+
+/**
+ * Handle Gemini function/tool calls
+ */
+function handleToolCall(ws, geminiSession, name, args, callId, context) {
+  switch (name) {
+    case "bookmark_idea": {
+      const bookmark = {
+        id: crypto.randomUUID(),
+        recommendation: args.recommendation || "",
+        category: args.category || "other",
+        tags: args.tags || [],
+        estimatedPrice: args.estimatedPrice || "",
+        timestamp: Date.now(),
+      };
+      context.sessionBookmarks.push(bookmark);
+      send(ws, { type: "bookmark_saved", bookmark });
+      console.log("[Tool] Bookmark saved:", bookmark.recommendation.slice(0, 50));
+
+      // Respond to Gemini so it continues
+      if (geminiSession) {
+        geminiSession.sendToolResponse([
+          { name: "bookmark_idea", response: { success: true, bookmarkId: bookmark.id } },
+        ]);
+      }
+      break;
+    }
+
+    case "update_budget_tracker": {
+      send(ws, {
+        type: "budget_update",
+        item: args.item || "",
+        estimatedCost: args.estimatedCost || 0,
+        runningTotal: args.runningTotal || 0,
+        budgetRemaining: args.budgetRemaining || 0,
+      });
+      console.log("[Tool] Budget update: $" + (args.runningTotal || 0) + " spent");
+
+      if (geminiSession) {
+        geminiSession.sendToolResponse([
+          { name: "update_budget_tracker", response: { tracked: true } },
+        ]);
+      }
+      break;
+    }
+
+    case "record_measurement": {
+      const measurement = {
+        label: args.label || "",
+        value: args.value || "",
+        confidence: args.confidence || "medium",
+        method: args.method || "visual_estimate",
+      };
+      context.sessionMeasurements.push(measurement);
+      send(ws, { type: "measurement", ...measurement });
+      console.log("[Tool] Measurement recorded:", measurement.label, measurement.value);
+
+      if (geminiSession) {
+        geminiSession.sendToolResponse([
+          { name: "record_measurement", response: { recorded: true } },
+        ]);
+      }
+      break;
+    }
+
+    case "generate_before_after": {
+      console.log("[Tool] Before/after requested:", args.changes?.slice(0, 80));
+      // Send the before frame and a placeholder — actual image generation
+      // would require Imagen API. For now, send the request info to frontend.
+      if (context.latestVideoFrame) {
+        send(ws, {
+          type: "before_after",
+          before: context.latestVideoFrame,
+          after: context.latestVideoFrame, // placeholder — same image for now
+          description: args.changes || "Design visualization",
+        });
+      }
+
+      if (geminiSession) {
+        geminiSession.sendToolResponse([
+          { name: "generate_before_after", response: { generated: true, note: "Visualization sent to user" } },
+        ]);
+      }
+      break;
+    }
+
+    default:
+      console.warn("[Tool] Unknown tool call:", name);
+      if (geminiSession) {
+        geminiSession.sendToolResponse([
+          { name, response: { error: "Unknown tool" } },
+        ]);
+      }
+  }
+}
 
 server.listen(PORT, () => {
   console.log(`[NoviSpace] Backend running on port ${PORT}`);

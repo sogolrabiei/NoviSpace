@@ -8,9 +8,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NoviSpace — AI Spatial Design Consultant",
+  title: "NoviSpace | AI Spatial Design Consultant",
   description:
     "Walk through your space with your camera and get real-time, interruptible design advice from an AI architectural consultant powered by Gemini.",
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Sparkle logo in terracotta color -->
+  <path d="M50 20 L55 35 L60 45 L70 50 L60 55 L55 65 L50 80 L45 65 L40 55 L30 50 L40 45 L45 35 Z" fill="#C17356" stroke="none"/>
+  <!-- Top right small sparkle -->
+  <circle cx="72" cy="28" r="3.5" fill="#C17356"/>
+  <path d="M72 24 L72 32 M68 28 L76 28" stroke="#C17356" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Bottom left small sparkle -->
+  <circle cx="35" cy="68" r="2.5" fill="#C17356"/>
+  <path d="M35 66 L35 70 M33 68 L37 68" stroke="#C17356" stroke-width="1.2" stroke-linecap="round"/>
+</svg>
