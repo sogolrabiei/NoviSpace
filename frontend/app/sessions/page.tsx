@@ -51,15 +51,15 @@ export default function SessionsPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Past Consultations</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Past Consultations</h1>
             <p className="mt-1 text-muted-foreground">
               {sessions.length} session{sessions.length !== 1 ? "s" : ""} saved
             </p>
           </div>
-          <Link href="/consult">
-            <Button className="gap-2">
+          <Link href="/consult" className="shrink-0">
+            <Button className="w-full gap-2 sm:w-auto">
               <Sparkles className="h-4 w-4" /> New Consultation
             </Button>
           </Link>

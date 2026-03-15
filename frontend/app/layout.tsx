@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description:
     "Walk through your space with your camera and get real-time, interruptible design advice from an AI architectural consultant powered by Gemini.",
   icons: {
-    icon: '/favicon.svg',
+    icon: '/Logo-NoviSpace.png',
   },
 };
 

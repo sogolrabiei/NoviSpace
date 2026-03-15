@@ -1,10 +1,31 @@
 # NoviSpace — AI Spatial Design Consultant
 
-> Real-time, interruptible design advice through live video and voice, powered by the Gemini Live API on Google Cloud.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Run-4285F4?logo=google-cloud)](https://cloud.google.com/run)
+[![Gemini API](https://img.shields.io/badge/Gemini-2.0%20Flash-8E75B2?logo=google)](https://ai.google.dev/gemini-api)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
 
-NoviSpace is a web application that lets you walk through your physical space with your device camera while an AI agent **sees** the room, understands architectural constraints, and provides professional-grade spatial design advice — all in a natural, interruptible voice conversation.
+> **Real-time, voice-first interior design consultation powered by Google's Gemini Live API**
 
-**Hackathon**: Gemini Live Agent Challenge — Live Agents category
+🏆 **Built for**: Gemini Live Agent Challenge — Live Agents Category  
+🌐 **Live Demo**: [https://novispace.ca](https://novispace.ca)  
+📹 **Demo Video**: [Watch on YouTube](#) <!-- Add your demo video link -->
+
+---
+
+## 🎯 What is NoviSpace?
+
+NoviSpace is a web application that lets you **walk through your home with your phone**, have a **natural voice conversation** with an AI design consultant, and get **instant, personalized recommendations** — all while staying within your budget.
+
+**The Problem**: Traditional interior design consultations cost $100-300/hour, require in-person visits, and are inaccessible to most homeowners.
+
+**Our Solution**: An AI-powered design consultant that:
+- 👁️ **Sees your space** through your camera in real-time
+- 🗣️ **Talks naturally** with voice (fully interruptible)
+- 📏 **Captures measurements** automatically
+- 💰 **Tracks your budget** as you discuss options
+- 🔖 **Bookmarks ideas** with voice commands ("save that!")
+- 🛒 **Generates shopping links** to Amazon, Wayfair, IKEA, etc.
 
 ---
 
@@ -18,18 +39,51 @@ NoviSpace is a web application that lets you walk through your physical space wi
 
 ---
 
-## Architecture
+## 🏗️ Architecture
+
+### Split-Brain Design
+
+NoviSpace uses a **split-brain architecture** to achieve both real-time conversational AI and structured data extraction:
 
 ```
-┌──────────────┐     WebSocket      ┌──────────────────┐    Gemini Live API    ┌─────────┐
-│   Frontend   │ ◄──────────────►  │   Backend        │ ◄──────────────────►  │ Gemini  │
-│  (Next.js)   │   video frames    │  (Express + WS)  │   audio/video stream  │ 2.0     │
-│  Cloud Run   │   + audio PCM     │  Cloud Run       │   + audio response    │ Flash   │
-└──────────────┘                    └──────────────────┘                        └─────────┘
-                                           │
-                                    Secret Manager
-                                    (Gemini API Key)
+┌─────────────────────────────────────────────────────────┐
+│                    User (Browser)                       │
+│              Camera + Mic + Transcript UI               │
+└────────────────────┬────────────────────────────────────┘
+                     │ WebSocket (video frames + audio)
+                     ↓
+┌─────────────────────────────────────────────────────────┐
+│              Backend (Node.js + Express)                │
+│                  WebSocket Server                       │
+└─────┬───────────────────────────────────────────┬───────┘
+      │                                           │
+      ↓                                           ↓
+┌─────────────────────┐              ┌──────────────────────┐
+│ INTERACTION LAYER   │              │  REASONING LAYER     │
+│  Gemini Live API    │              │  Gemini 2.0 Flash    │
+│  (WebSocket)        │              │  (REST API)          │
+├─────────────────────┤              ├──────────────────────┤
+│ • Audio/video input │              │ • Analyzes transcript│
+│ • Real-time voice   │              │ • Extracts bookmarks │
+│ • Transcription     │              │ • Finds measurements │
+│ • NO tool calling   │              │ • Tracks budget      │
+│   (unstable)        │              │ • Deduplication      │
+└─────────────────────┘              └──────────────────────┘
 ```
+
+**Why Split-Brain?**
+- Gemini Live's native tool calling is unstable (causes session crashes)
+- Separation allows the Interaction Layer to focus on conversation quality
+- Reasoning Layer uses stable REST API with retry logic for data extraction
+- Debounced analysis (8s) reduces API calls and improves accuracy
+
+### Key Technical Innovations
+
+1. **Transcript Fragment Merging**: Consecutive same-speaker fragments are merged before analysis to prevent extracting garbage data
+2. **Instant Bookmark Detection**: User says "save that" → system immediately bookmarks the last agent message
+3. **Client-Side Measurement Fallback**: If API fails, measurements are extracted from transcript using regex
+4. **Smart Shopping Links**: Product names are extracted from conversational text for accurate search queries
+5. **Mobile-First UI**: Video stays pinned while transcript scrolls independently
 
 ### Tech Stack
 
@@ -205,6 +259,60 @@ gcloud run deploy novispace-frontend \
 
 ---
 
-## License
+## 🐛 Troubleshooting
 
-MIT
+### Camera/Microphone Not Working
+- Ensure you're using **HTTPS** (required for WebRTC)
+- Check browser permissions (click the lock icon in the address bar)
+- Try a different browser (Chrome/Edge work best)
+
+### WebSocket Connection Fails
+- Verify the backend URL in frontend `.env.local`
+- For production, ensure you're using `wss://` (not `ws://`)
+- Check CORS settings in backend environment variables
+
+### API Rate Limits
+- Free tier: 15 requests/minute for `gemini-2.0-flash`
+- Upgrade to paid tier: ~$1-3/day for 100 sessions
+- See [upgrade instructions](DEVPOST_SUBMISSION.md#how-to-upgrade-to-gemini-api-paid-tier)
+
+### Session Not Saving
+- Check browser localStorage isn't full
+- Ensure you're on the same domain (no www vs non-www mismatch)
+
+---
+
+## 📚 Documentation
+
+- [DevPost Submission](DEVPOST_SUBMISSION.md) - Full project write-up for hackathon judges
+- [Architecture Details](docs/architecture.md) - Deep dive into the split-brain design
+- [Infrastructure Setup](infrastructure/terraform/README.md) - Terraform deployment guide
+- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute
+- [Security Policy](SECURITY.md) - Security best practices
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with [Google Gemini API](https://ai.google.dev/gemini-api)
+- Deployed on [Google Cloud Run](https://cloud.google.com/run)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)
+- Icons from [Lucide](https://lucide.dev/)
+
+---
+
+## 📧 Contact
+
+For questions or feedback about NoviSpace, please open a [GitHub Issue](../../issues).

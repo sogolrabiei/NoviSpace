@@ -105,6 +105,14 @@ export default function ConsultPage() {
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
+  // Refs to track latest session data (avoids stale closure in endSession)
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const bookmarksRef = useRef<BookmarkEntry[]>([]);
+  const measurementsRef = useRef<MeasurementEntry[]>([]);
+  const budgetRef = useRef<BudgetState | null>(null);
+  const beforeAfterRef = useRef<BeforeAfterEntry[]>([]);
+  const sessionIdRef = useRef<string>("");
+
   // Gapless audio playback with scheduled buffers
   const playbackContextRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef<number>(0);
@@ -190,9 +198,12 @@ export default function ConsultPage() {
     return float32;
   }, []);
 
-  // Auto-scroll transcript
+  // Auto-scroll transcript (scroll within container only, not the whole page)
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = transcriptEndRef.current;
+    if (el && el.parentElement) {
+      el.parentElement.scrollTop = el.parentElement.scrollHeight;
+    }
   }, [transcript]);
 
   // Bookmark toast auto-hide
@@ -212,16 +223,23 @@ export default function ConsultPage() {
     setMeasurements([]);
     setBeforeAfterImages([]);
     setShowBudgetPicker(false);
+    // Reset refs
+    transcriptRef.current = [];
+    bookmarksRef.current = [];
+    measurementsRef.current = [];
+    beforeAfterRef.current = [];
 
     // Generate session ID
     const sid = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setSessionId(sid);
+    sessionIdRef.current = sid;
 
     // Determine budget to send
     const budgetToSend = budgetSelection === "custom"
       ? { type: "specific" as const, value: customBudget || "5000" }
       : { type: "descriptive" as const, value: budgetSelection };
     setBudget({ ...budgetToSend, spent: 0, items: [] });
+    budgetRef.current = { ...budgetToSend, spent: 0, items: [] };
 
     // Load style profile from localStorage (quiz results)
     let styleProfile = null;
@@ -320,49 +338,66 @@ export default function ConsultPage() {
               timestamp: Date.now(),
             };
             setTranscript((prev) => {
+              let next;
               // Append to last entry if same speaker for streaming text
               if (prev.length > 0 && prev[prev.length - 1].speaker === msg.speaker) {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  text: updated[updated.length - 1].text + msg.text,
+                next = [...prev];
+                next[next.length - 1] = {
+                  ...next[next.length - 1],
+                  text: next[next.length - 1].text + msg.text,
                 };
-                return updated;
+              } else {
+                next = [...prev, entry];
               }
-              return [...prev, entry];
+              transcriptRef.current = next;
+              return next;
             });
             break;
           }
 
           case "bookmark_saved":
-            setBookmarks((prev) => [...prev, msg.bookmark]);
+            setBookmarks((prev) => {
+              const next = [...prev, msg.bookmark];
+              bookmarksRef.current = next;
+              return next;
+            });
             setBookmarkToast(msg.bookmark.recommendation?.slice(0, 60) + "...");
             break;
 
           case "budget_update":
-            setBudget((prev) =>
-              prev ? {
+            setBudget((prev) => {
+              const next = prev ? {
                 ...prev,
                 spent: msg.runningTotal || prev.spent,
                 items: [...prev.items, { item: msg.item, cost: msg.estimatedCost }],
-              } : prev
-            );
+              } : prev;
+              budgetRef.current = next;
+              return next;
+            });
             break;
 
           case "measurement":
-            setMeasurements((prev) => [...prev, {
-              label: msg.label,
-              value: msg.value,
-              confidence: msg.confidence || "medium",
-            }]);
+            setMeasurements((prev) => {
+              const next = [...prev, {
+                label: msg.label,
+                value: msg.value,
+                confidence: msg.confidence || "medium",
+              }];
+              measurementsRef.current = next;
+              return next;
+            });
             break;
 
           case "before_after":
-            setBeforeAfterImages((prev) => [...prev, {
-              before: msg.before,
-              after: msg.after,
-              description: msg.description,
-            }]);
+            setBeforeAfterImages((prev) => {
+              const next = [...prev, {
+                before: msg.before,
+                after: msg.after,
+                description: msg.description,
+              }];
+              beforeAfterRef.current = next;
+              return next;
+            });
             setShowBeforeAfter({
               before: msg.before,
               after: msg.after,
@@ -424,27 +459,35 @@ export default function ConsultPage() {
     setAgentSpeaking(false);
     setStatusText("Session ended");
 
+    // Use refs for latest data (avoids stale closure)
+    const sid = sessionIdRef.current;
+    const t = transcriptRef.current;
+    const b = bookmarksRef.current;
+    const m = measurementsRef.current;
+    const bg = budgetRef.current;
+    const ba = beforeAfterRef.current;
+
     // Save session data to localStorage for the report page
-    if (sessionId && (transcript.length > 0 || bookmarks.length > 0)) {
+    if (sid && (t.length > 0 || b.length > 0)) {
       const sessionData = {
-        sessionId,
-        transcript,
-        bookmarks,
-        measurements,
-        budget,
-        beforeAfterImages,
+        sessionId: sid,
+        transcript: t,
+        bookmarks: b,
+        measurements: m,
+        budget: bg,
+        beforeAfterImages: ba,
         endedAt: Date.now(),
       };
-      localStorage.setItem(`novispace_session_${sessionId}`, JSON.stringify(sessionData));
+      localStorage.setItem(`novispace_session_${sid}`, JSON.stringify(sessionData));
       // Store session ID list
       const sessions = JSON.parse(localStorage.getItem("novispace_sessions") || "[]");
-      sessions.unshift({ id: sessionId, date: new Date().toISOString(), transcriptLength: transcript.length });
+      sessions.unshift({ id: sid, date: new Date().toISOString(), transcriptLength: t.length });
       localStorage.setItem("novispace_sessions", JSON.stringify(sessions));
 
       // Navigate to report
-      router.push(`/report/${sessionId}`);
+      router.push(`/report/${sid}`);
     }
-  }, [cleanup, sessionId, transcript, bookmarks, measurements, budget, beforeAfterImages, router]);
+  }, [cleanup, router]);
 
   useEffect(() => {
     return () => cleanup();
@@ -537,25 +580,25 @@ export default function ConsultPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex h-screen max-h-screen flex-col bg-background overflow-hidden">
       {/* Header */}
-      <header className="flex h-14 items-center justify-between border-b px-4 bg-background z-20">
-        <Link href="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
+      <header className="flex h-14 shrink-0 items-center justify-between border-b px-2 sm:px-4 bg-background z-20">
+        <Link href="/" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0">
+          <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back</span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Sparkles className="h-4 w-4 text-accent" />
-          <span className="text-sm font-medium">NoviSpace</span>
+          <span className="text-sm font-medium hidden sm:inline">NoviSpace</span>
         </div>
         {/* Budget indicator */}
         {budget && sessionState === "active" && (
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <DollarSign className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
             <div className="flex flex-col items-end">
-              <span className="text-xs font-medium">
+              <span className="text-[10px] sm:text-xs font-medium">
                 ${Math.round(budget.spent).toLocaleString()} / {budgetLabel(budget)}
               </span>
-              <div className="h-1 w-20 rounded-full bg-secondary overflow-hidden">
+              <div className="h-1 w-16 sm:w-20 rounded-full bg-secondary overflow-hidden">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
@@ -568,16 +611,16 @@ export default function ConsultPage() {
             </div>
           </div>
         )}
-        {!(budget && sessionState === "active") && <div className="w-16" />}
+        {!(budget && sessionState === "active") && <div className="w-8 sm:w-16" />}
       </header>
 
       {/* Main content */}
-      <main className="flex flex-1 overflow-hidden">
-        {/* Left: Video + Controls */}
-        <div className="flex flex-1 flex-col items-center justify-center p-4">
+      <main className="flex flex-1 flex-col lg:flex-row overflow-hidden">
+        {/* Video + Controls */}
+        <div className="flex shrink-0 lg:flex-1 flex-col items-center justify-center p-2 sm:p-4 max-h-[65vh] lg:max-h-none">
           {/* Video area */}
           <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border bg-secondary/30">
-            <div className="aspect-video relative">
+            <div className="aspect-[4/3] sm:aspect-video relative">
               <video
                 ref={videoRef}
                 autoPlay
@@ -693,9 +736,9 @@ export default function ConsultPage() {
           </div>
         </div>
 
-        {/* Right sidebar: Transcript + Bookmarks (visible during active session) */}
+        {/* Transcript + Bookmarks sidebar (visible during active session) */}
         {sessionState === "active" && (
-          <div className="w-80 border-l bg-card flex flex-col overflow-hidden">
+          <div className="w-full border-t lg:w-80 lg:border-l lg:border-t-0 bg-card flex flex-col overflow-hidden flex-1 min-h-0 lg:min-h-0">
             {/* Sidebar tabs */}
             <div className="flex border-b">
               <button
@@ -726,23 +769,31 @@ export default function ConsultPage() {
                     Conversation will appear here...
                   </p>
                 )}
-                {transcript.map((t, i) => (
-                  <div key={i} className={cn("flex gap-2", t.speaker === "user" ? "justify-end" : "justify-start")}>
-                    <div
-                      className={cn(
-                        "rounded-lg px-3 py-2 text-xs max-w-[90%]",
-                        t.speaker === "user"
-                          ? "bg-accent/10 text-foreground"
-                          : "bg-secondary text-foreground"
-                      )}
-                    >
-                      <div className="font-medium mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {t.speaker === "user" ? "You" : "NoviSpace"}
+                {transcript.map((t, i) => {
+                  const cleaned = t.text
+                    .replace(/<ctrl\d+>/g, "")
+                    .replace(/<call:\w+\{[^}]*\}>/g, "")
+                    .replace(/\s{2,}/g, " ")
+                    .trim();
+                  if (!cleaned) return null;
+                  return (
+                    <div key={i} className={cn("flex gap-2", t.speaker === "user" ? "justify-end" : "justify-start")}>
+                      <div
+                        className={cn(
+                          "rounded-lg px-3 py-2 text-xs max-w-[90%]",
+                          t.speaker === "user"
+                            ? "bg-accent/10 text-foreground"
+                            : "bg-secondary text-foreground"
+                        )}
+                      >
+                        <div className="font-medium mb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {t.speaker === "user" ? "You" : "NoviSpace"}
+                        </div>
+                        {cleaned}
                       </div>
-                      {t.text}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={transcriptEndRef} />
               </div>
             )}

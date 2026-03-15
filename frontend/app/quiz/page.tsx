@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,10 +8,7 @@ import {
   Sparkles,
   Heart,
   X,
-  ChevronRight,
-  RotateCcw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ── Card data: 12 images with hidden tags ──────────────────────────
@@ -174,11 +171,14 @@ export default function QuizPage() {
   const topTags = tallyTags(likedTags);
   const topTraits = topTags.slice(0, 5);
 
-  // ── Save & continue ────────────────────────────────────────────
-  const saveAndContinue = () => {
+  // ── Auto-save & redirect when quiz finishes ────────────────────
+  useEffect(() => {
+    if (!done) return;
+    const finalTags = tallyTags(likedTags);
+    const finalTraits = finalTags.slice(0, 5);
     const styleProfile = {
       completedAt: new Date().toISOString(),
-      topStyles: topTraits.map((t) => ({
+      topStyles: finalTraits.map((t) => ({
         label: t.tag,
         percentage: Math.round((t.count / Math.max(1, likedTags.length)) * 100),
       })),
@@ -187,100 +187,7 @@ export default function QuizPage() {
     };
     localStorage.setItem("novispace_style_profile", JSON.stringify(styleProfile));
     router.push("/consult");
-  };
-
-  const reset = () => {
-    setCurrentIndex(0);
-    setLikedTags([]);
-    setDislikedTags([]);
-    setDone(false);
-    setDragX(0);
-    setExitDir(null);
-  };
-
-  // ════════════════════════════════════════════════════════════════
-  // ── RESULTS SCREEN ─────────────────────────────────────────────
-  // ════════════════════════════════════════════════════════════════
-  if (done) {
-    const summary = generateSummary(topTraits);
-    const maxCount = topTraits[0]?.count || 1;
-
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <header className="flex h-14 items-center justify-between border-b px-4 bg-background">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" /> Home
-          </Link>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <span className="text-sm font-medium">Your Style</span>
-          </div>
-          <div className="w-16" />
-        </header>
-
-        <main className="flex flex-1 flex-col items-center justify-center p-4">
-          <div className="w-full max-w-md space-y-8">
-            <div className="text-center">
-              <Sparkles className="mx-auto mb-3 h-10 w-10 text-accent" />
-              <h2 className="text-2xl font-bold">Style Summary</h2>
-              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                {summary}
-              </p>
-            </div>
-
-            {topTraits.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Your Top Design Traits
-                </h3>
-                {topTraits.map((t, i) => (
-                  <div key={t.tag} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span
-                        className={cn("font-medium", i === 0 && "text-accent")}
-                      >
-                        {t.tag}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        mentioned {t.count}x
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-700",
-                          i === 0 ? "bg-accent" : "bg-accent/50"
-                        )}
-                        style={{
-                          width: `${Math.round((t.count / maxCount) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={reset}
-              >
-                <RotateCcw className="h-4 w-4" /> Retake
-              </Button>
-              <Button className="flex-1 gap-2" onClick={saveAndContinue}>
-                Start Consultation <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  }, [done, likedTags, dislikedTags, router]);
 
   // ════════════════════════════════════════════════════════════════
   // ── QUIZ / SWIPE SCREEN ────────────────────────────────────────

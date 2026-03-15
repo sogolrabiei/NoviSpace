@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Video,
   Mic,
@@ -20,23 +21,29 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="fixed top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-accent" />
+          <Link href="/" className="flex items-center gap-3">
+            <Image 
+              src="/Logo-NoviSpace.png" 
+              alt="NoviSpace" 
+              width={32} 
+              height={32}
+              className="h-8 w-8"
+            />
             <span className="text-lg font-semibold tracking-tight">
               NoviSpace
             </span>
-          </div>
+          </Link>
           <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <a href="#features" className="hover:text-foreground transition-colors">
+            <a href="#features" className="transition-colors hover:text-accent">
               Features
             </a>
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">
+            <a href="#how-it-works" className="transition-colors hover:text-accent">
               How It Works
             </a>
-            <Link href="/quiz" className="hover:text-foreground transition-colors">
+            <Link href="/quiz" className="transition-colors hover:text-accent">
               Style Quiz
             </Link>
-            <Link href="/sessions" className="hover:text-foreground transition-colors">
+            <Link href="/sessions" className="transition-colors hover:text-accent">
               My Sessions
             </Link>
           </div>
@@ -66,13 +73,13 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link href="/consult">
-              <Button size="lg" className="gap-2">
+              <Button size="lg" className="gap-2 transition-all hover:bg-accent hover:text-accent-foreground">
                 Start Live Consultation
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/quiz">
-              <Button variant="outline" size="lg" className="gap-2">
+              <Button variant="outline" size="lg" className="gap-2 transition-all hover:bg-accent hover:text-accent-foreground">
                 <Sparkles className="h-4 w-4" />
                 Take Style Quiz First
               </Button>
@@ -218,13 +225,13 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link href="/consult">
-              <Button size="lg" className="gap-2">
+              <Button size="lg" className="gap-2 transition-all hover:bg-accent hover:text-accent-foreground">
                 Start Live Consultation
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/quiz">
-              <Button variant="outline" size="lg" className="gap-2">
+              <Button variant="outline" size="lg" className="gap-2 transition-all hover:bg-accent hover:text-accent-foreground">
                 <Sparkles className="h-4 w-4" />
                 Discover Your Style
               </Button>
@@ -235,14 +242,20 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t py-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-accent" />
-            NoviSpace
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/sessions" className="hover:text-foreground transition-colors">My Sessions</Link>
-            <Link href="/quiz" className="hover:text-foreground transition-colors">Style Quiz</Link>
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <Image 
+              src="/Logo-NoviSpace.png" 
+              alt="NoviSpace" 
+              width={20} 
+              height={20}
+              className="h-5 w-5"
+            />
+            <span>NoviSpace</span>
+          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <Link href="/sessions" className="transition-colors hover:text-accent">My Sessions</Link>
+            <Link href="/quiz" className="transition-colors hover:text-accent">Style Quiz</Link>
             <p>Built with Gemini Live API</p>
           </div>
         </div>

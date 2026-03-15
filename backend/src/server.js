@@ -5,6 +5,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 const { createGeminiSession } = require("./services/gemini-live");
+const { ReasoningLayer } = require("./services/reasoning-layer");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -39,14 +40,81 @@ function send(ws, data) {
   }
 }
 
+/**
+ * Process reasoning layer results: send events to frontend, inject context into live session
+ */
+function processReasoningResults(ws, geminiSession, results, context) {
+  if (!results) return;
+
+  // Process bookmarks
+  for (const b of results.bookmarks) {
+    const bookmark = {
+      id: crypto.randomUUID(),
+      recommendation: b.recommendation || "",
+      category: b.category || "other",
+      tags: [],
+      estimatedPrice: b.estimatedPrice || "",
+      timestamp: Date.now(),
+    };
+    context.sessionBookmarks.push(bookmark);
+    send(ws, { type: "bookmark_saved", bookmark });
+    console.log("[SplitBrain] Bookmark:", bookmark.recommendation.slice(0, 60));
+  }
+
+  // Process measurements
+  for (const m of results.measurements) {
+    const measurement = {
+      label: m.label || "",
+      value: m.value || "",
+      confidence: m.confidence || "medium",
+      method: "visual_estimate",
+    };
+    context.sessionMeasurements.push(measurement);
+    send(ws, { type: "measurement", ...measurement });
+    console.log("[SplitBrain] Measurement:", measurement.label, measurement.value);
+  }
+
+  // Process budget items
+  for (const item of results.budgetItems) {
+    send(ws, {
+      type: "budget_update",
+      item: item.item,
+      estimatedCost: item.estimatedCost,
+      runningTotal: item.runningTotal,
+      budgetRemaining: 0,
+    });
+    console.log("[SplitBrain] Budget item:", item.item, "$" + item.estimatedCost);
+  }
+}
+
 wss.on("connection", (ws) => {
   console.log("[WS] Client connected");
   let geminiSession = null;
-  let latestVideoFrame = null; // Store latest frame for before/after
-  let sessionTranscript = []; // Accumulate transcript for report
-  let sessionBookmarks = []; // Accumulate bookmarks
-  let sessionMeasurements = []; // Accumulate measurements
+  let reasoningLayer = null;
+  let latestVideoFrame = null;
+  let sessionTranscript = [];
+  let sessionBookmarks = [];
+  let sessionMeasurements = [];
   let sessionBudget = null;
+  let analysisTimer = null;     // Debounce timer for reasoning layer
+
+  // Schedule a reasoning layer analysis (debounced — runs 8s after last trigger
+  // to let transcript fragments merge AND reduce API call frequency for rate limits)
+  function scheduleAnalysis() {
+    if (!reasoningLayer || !geminiSession) return;
+    if (analysisTimer) clearTimeout(analysisTimer);
+    analysisTimer = setTimeout(async () => {
+      try {
+        const results = await reasoningLayer.analyze();
+        processReasoningResults(ws, geminiSession, results, {
+          sessionBookmarks,
+          sessionMeasurements,
+        });
+      } catch (err) {
+        console.error("[SplitBrain] Analysis error:", err.message);
+      }
+    }, 8000);
+  }
 
   ws.on("message", async (raw) => {
     try {
@@ -65,7 +133,11 @@ wss.on("connection", (ws) => {
           sessionBookmarks = [];
           sessionMeasurements = [];
 
-          console.log("[Server] Starting session with budget:", sessionBudget, "and style profile:", styleProfile);
+          // Create reasoning layer (uses stable Gemini model via REST API)
+          const apiKey = process.env.GEMINI_API_KEY;
+          reasoningLayer = new ReasoningLayer(apiKey);
+
+          console.log("[Server] Starting split-brain session. Budget:", sessionBudget, "Style:", styleProfile);
 
           geminiSession = await createGeminiSession({
             budget: sessionBudget,
@@ -85,6 +157,8 @@ wss.on("connection", (ws) => {
 
             onTurnComplete: () => {
               send(ws, { type: "turn_complete" });
+              // Agent finished speaking — schedule reasoning layer analysis
+              scheduleAnalysis();
             },
 
             onError: (err) => {
@@ -92,24 +166,65 @@ wss.on("connection", (ws) => {
               send(ws, { type: "error", data: err.message });
             },
 
-            // Transcription callback — relay to frontend and accumulate
+            // Transcription callback — relay to frontend, accumulate, AND feed to reasoning layer
             onTranscript: (speaker, text) => {
               send(ws, { type: "transcript", speaker, text });
               sessionTranscript.push({ speaker, text, timestamp: Date.now() });
+
+              // Feed to reasoning layer
+              if (reasoningLayer) {
+                reasoningLayer.addEntry(speaker, text);
+              }
+
+              // Check for immediate bookmark intent from user
+              if (speaker === "user" && reasoningLayer && reasoningLayer.isBookmarkIntent(text)) {
+                const agentMsg = reasoningLayer.getLastAgentMessage();
+                if (agentMsg) {
+                  // Extract concise product description from agent message
+                  // 1) Strip conversational filler from the start
+                  let cleaned = agentMsg
+                    .replace(/^(got it[.!,]?\s*|sure[.!,]?\s*|absolutely[.!,]?\s*|yes[,!.]?\s*(i can hear you[.!]?\s*)?|okay[.!,]?\s*|great[.!,]?\s*|right[.!,]?\s*|of course[.!,]?\s*|sounds good[.!,]?\s*|perfect[.!,]?\s*)/i, "")
+                    .replace(/^(so[,]?\s*|well[,]?\s*|now[,]?\s*)/i, "")
+                    .trim();
+                  if (!cleaned) cleaned = agentMsg;
+
+                  // 2) Take first 1-2 complete sentences
+                  const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
+                  let recText = sentences.slice(0, 2).join(" ").trim();
+                  if (recText.length < 15 && cleaned.length > 15) recText = cleaned.slice(0, 150);
+                  if (recText.length > 250) recText = sentences[0]?.trim() || cleaned.slice(0, 150);
+
+                  const bookmark = {
+                    id: crypto.randomUUID(),
+                    recommendation: recText,
+                    category: "other",
+                    tags: [],
+                    estimatedPrice: "",
+                    timestamp: Date.now(),
+                  };
+                  sessionBookmarks.push(bookmark);
+                  send(ws, { type: "bookmark_saved", bookmark });
+                  console.log("[SplitBrain] Instant bookmark (user intent):", recText.slice(0, 60));
+
+                  // Mark in reasoning layer so it won't re-extract the same bookmark
+                  reasoningLayer.markBookmarked(agentMsg);
+
+                  // Inject context — triggerResponse=false so agent picks it up
+                  // naturally on its next turn, avoiding a forced double-acknowledgment
+                  if (geminiSession) {
+                    geminiSession.injectContext(
+                      `[SYSTEM] Bookmark saved for the user's report: "${agentMsg.slice(0, 100)}". Next time you speak, briefly confirm it was saved.`,
+                      false
+                    );
+                  }
+                }
+              }
             },
 
-            // Tool call handler
-            onToolCall: (name, args, callId) => {
-              handleToolCall(ws, geminiSession, name, args, callId, {
-                sessionBookmarks,
-                sessionMeasurements,
-                latestVideoFrame,
-              });
-            },
           });
 
           send(ws, { type: "session_started" });
-          console.log("[WS] Gemini session started with budget:", sessionBudget?.value || "none");
+          console.log("[WS] Split-brain session started. Budget:", sessionBudget?.value || "none");
           break;
 
         case "audio":
@@ -122,17 +237,21 @@ wss.on("connection", (ws) => {
           if (geminiSession) {
             geminiSession.sendVideo(msg.data);
           }
-          // Always store the latest frame for before/after generation
           latestVideoFrame = msg.data;
           break;
 
         case "end_session":
+          if (analysisTimer) clearTimeout(analysisTimer);
           if (geminiSession) {
             geminiSession.close();
             geminiSession = null;
           }
+          if (reasoningLayer) {
+            reasoningLayer.reset();
+            reasoningLayer = null;
+          }
           send(ws, { type: "session_ended" });
-          console.log("[WS] Session ended. Transcript entries:", sessionTranscript.length, "Bookmarks:", sessionBookmarks.length);
+          console.log("[WS] Session ended. Transcript:", sessionTranscript.length, "Bookmarks:", sessionBookmarks.length, "Measurements:", sessionMeasurements.length);
           break;
 
         default:
@@ -146,115 +265,26 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log("[WS] Client disconnected");
+    if (analysisTimer) clearTimeout(analysisTimer);
     if (geminiSession) {
       geminiSession.close();
       geminiSession = null;
+    }
+    if (reasoningLayer) {
+      reasoningLayer.reset();
+      reasoningLayer = null;
     }
   });
 
   ws.on("error", (err) => {
     console.error("[WS] WebSocket error:", err);
+    if (analysisTimer) clearTimeout(analysisTimer);
     if (geminiSession) {
       geminiSession.close();
       geminiSession = null;
     }
   });
 });
-
-/**
- * Handle Gemini function/tool calls
- */
-function handleToolCall(ws, geminiSession, name, args, callId, context) {
-  switch (name) {
-    case "bookmark_idea": {
-      const bookmark = {
-        id: crypto.randomUUID(),
-        recommendation: args.recommendation || "",
-        category: args.category || "other",
-        tags: args.tags || [],
-        estimatedPrice: args.estimatedPrice || "",
-        timestamp: Date.now(),
-      };
-      context.sessionBookmarks.push(bookmark);
-      send(ws, { type: "bookmark_saved", bookmark });
-      console.log("[Tool] Bookmark saved:", bookmark.recommendation.slice(0, 50));
-
-      // Respond to Gemini so it continues
-      if (geminiSession) {
-        geminiSession.sendToolResponse([
-          { name: "bookmark_idea", response: { success: true, bookmarkId: bookmark.id } },
-        ]);
-      }
-      break;
-    }
-
-    case "update_budget_tracker": {
-      send(ws, {
-        type: "budget_update",
-        item: args.item || "",
-        estimatedCost: args.estimatedCost || 0,
-        runningTotal: args.runningTotal || 0,
-        budgetRemaining: args.budgetRemaining || 0,
-      });
-      console.log("[Tool] Budget update: $" + (args.runningTotal || 0) + " spent");
-
-      if (geminiSession) {
-        geminiSession.sendToolResponse([
-          { name: "update_budget_tracker", response: { tracked: true } },
-        ]);
-      }
-      break;
-    }
-
-    case "record_measurement": {
-      const measurement = {
-        label: args.label || "",
-        value: args.value || "",
-        confidence: args.confidence || "medium",
-        method: args.method || "visual_estimate",
-      };
-      context.sessionMeasurements.push(measurement);
-      send(ws, { type: "measurement", ...measurement });
-      console.log("[Tool] Measurement recorded:", measurement.label, measurement.value);
-
-      if (geminiSession) {
-        geminiSession.sendToolResponse([
-          { name: "record_measurement", response: { recorded: true } },
-        ]);
-      }
-      break;
-    }
-
-    case "generate_before_after": {
-      console.log("[Tool] Before/after requested:", args.changes?.slice(0, 80));
-      // Send the before frame and a placeholder — actual image generation
-      // would require Imagen API. For now, send the request info to frontend.
-      if (context.latestVideoFrame) {
-        send(ws, {
-          type: "before_after",
-          before: context.latestVideoFrame,
-          after: context.latestVideoFrame, // placeholder — same image for now
-          description: args.changes || "Design visualization",
-        });
-      }
-
-      if (geminiSession) {
-        geminiSession.sendToolResponse([
-          { name: "generate_before_after", response: { generated: true, note: "Visualization sent to user" } },
-        ]);
-      }
-      break;
-    }
-
-    default:
-      console.warn("[Tool] Unknown tool call:", name);
-      if (geminiSession) {
-        geminiSession.sendToolResponse([
-          { name, response: { error: "Unknown tool" } },
-        ]);
-      }
-  }
-}
 
 server.listen(PORT, () => {
   console.log(`[NoviSpace] Backend running on port ${PORT}`);
