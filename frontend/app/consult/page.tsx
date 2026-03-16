@@ -631,7 +631,7 @@ export default function ConsultPage() {
         <div className="flex shrink-0 lg:flex-1 flex-col items-center justify-center p-2 sm:p-4 max-h-[65vh] lg:max-h-none">
           {/* Video area */}
           <div className="relative w-full max-w-2xl overflow-hidden rounded-xl border bg-secondary/30">
-            <div className="aspect-[4/3] sm:aspect-video relative">
+            <div className="aspect-[3/4] sm:aspect-[4/3] lg:aspect-video relative">
               <video
                 ref={videoRef}
                 autoPlay
