@@ -117,14 +117,37 @@ novispace/
 
 ---
 
+## 🚀 Quick Start (For Judges/Testers)
+
+**Want to test NoviSpace locally in 2 minutes?**
+
+```bash
+# 1. Get a free Gemini API key: https://ai.google.dev
+# 2. Clone and setup backend
+git clone https://github.com/sogolrabiei/NoviSpace.git
+cd NoviSpace/backend
+npm install
+echo "GEMINI_API_KEY=your_key_here" > .env
+npm run dev
+
+# 3. In a new terminal, setup frontend
+cd ../frontend
+npm install
+npm run dev
+
+# 4. Open http://localhost:3000 and start designing!
+```
+
+---
+
 ## Prerequisites
 
 - **Node.js** >= 20
 - **npm** >= 10
 - A **Gemini API key** (get one at [ai.google.dev](https://ai.google.dev))
-- **Google Cloud** project with billing (for deployment)
-- **Terraform** >= 1.5 (for infrastructure)
-- **Docker** (for containerized deployment)
+- **Google Cloud** project with billing (for deployment only)
+- **Terraform** >= 1.5 (for infrastructure deployment only)
+- **Docker** (for containerized deployment only)
 
 ---
 
@@ -136,9 +159,13 @@ novispace/
 cd backend
 npm install
 
-# Create .env from example
+# Create .env file with your Gemini API key
 cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY
+# Edit .env and replace 'your_gemini_api_key_here' with your actual key
+# Or use this one-liner (replace YOUR_KEY):
+echo "GEMINI_API_KEY=YOUR_KEY_HERE
+PORT=8080
+CORS_ORIGIN=http://localhost:3000" > .env
 
 npm run dev
 ```
@@ -150,15 +177,18 @@ The backend runs on `http://localhost:8080` with WebSocket at `ws://localhost:80
 ```bash
 cd frontend
 npm install
-
-# Create .env.local from example
-cp .env.example .env.local
-# Default WS_URL points to localhost:8080
-
 npm run dev
 ```
 
 The frontend runs on `http://localhost:3000`.
+
+**Note**: No `.env.local` file is required for local development. The frontend automatically connects to `ws://localhost:8080/ws`. If you need to override this, create a `.env.local` file:
+
+```bash
+# Optional: only if you need a custom WebSocket URL
+cp .env.example .env.local
+# Edit .env.local and set NEXT_PUBLIC_WS_URL
+```
 
 ### 3. Usage
 
@@ -208,8 +238,11 @@ cd ../frontend
 gcloud run deploy novispace-frontend \
   --source . \
   --region us-central1 \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --set-env-vars "NEXT_PUBLIC_WS_URL=wss://YOUR-BACKEND-URL/ws"
 ```
+
+**Important**: Replace `YOUR-BACKEND-URL` with your actual backend Cloud Run URL from the previous step.
 
 ---
 
