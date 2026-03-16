@@ -568,6 +568,17 @@ export default function ConsultPage() {
                 </div>
               )}
             </div>
+            <div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground text-center">
+              By starting a consultation, you agree to our{" "}
+              <Link href="/terms" target="_blank" className="underline hover:text-foreground">
+                Terms & Conditions
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" target="_blank" className="underline hover:text-foreground">
+                Privacy Policy
+              </Link>
+              . Your camera and microphone data will be processed by Google Gemini AI.
+            </div>
             <Button size="lg" className="w-full gap-2" onClick={startSession}>
               <Video className="h-4 w-4" />
               Start Live Consultation

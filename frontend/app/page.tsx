@@ -241,22 +241,27 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Image 
-              src="/Logo-NoviSpace.png" 
-              alt="NoviSpace" 
-              width={20} 
-              height={20}
-              className="h-5 w-5"
-            />
-            <span>NoviSpace</span>
-          </Link>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <Link href="/sessions" className="transition-colors hover:text-accent">My Sessions</Link>
-            <Link href="/quiz" className="transition-colors hover:text-accent">Style Quiz</Link>
-            <p>Built with Gemini Live API</p>
+      <footer className="border-t bg-muted/30 py-12">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <span className="text-lg font-semibold">NoviSpace</span>
+            </div>
+            <p className="text-sm text-muted-foreground max-w-md">
+              AI-powered spatial design consultation. Powered by Google Gemini.
+            </p>
+            <div className="flex gap-4 text-sm text-muted-foreground">
+              <Link href="/quiz" className="hover:text-foreground transition-colors">Style Quiz</Link>
+              <Link href="/sessions" className="hover:text-foreground transition-colors">My Sessions</Link>
+              <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-foreground transition-colors">Terms & Conditions</Link>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              © 2026 NoviSpace. Open source project. By using this service, you agree to our{" "}
+              <Link href="/terms" className="underline hover:text-foreground">Terms</Link> and{" "}
+              <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+            </p>
           </div>
         </div>
       </footer>
