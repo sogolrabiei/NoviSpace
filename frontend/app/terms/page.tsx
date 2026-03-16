@@ -120,9 +120,12 @@ export default function TermsPage() {
           <li>Inability to access or retrieve past consultation sessions</li>
         </ul>
 
-        <h3>6.5 Maximum Liability</h3>
+        <h3>6.5 Zero Liability</h3>
+        <p className="font-bold">
+          NOVISPACE AND ITS DEVELOPERS ACCEPT ABSOLUTELY NO LIABILITY WHATSOEVER FOR ANY DAMAGES, LOSSES, OR HARM ARISING FROM YOUR USE OF THE SERVICE. YOU USE THIS SERVICE ENTIRELY AT YOUR OWN RISK.
+        </p>
         <p>
-          IN NO EVENT SHALL OUR TOTAL LIABILITY TO YOU EXCEED $100 USD OR THE AMOUNT YOU PAID TO USE THE SERVICE (CURRENTLY $0), WHICHEVER IS GREATER.
+          This is a free, open-source hackathon project provided without any guarantees or warranties of any kind.
         </p>
 
         <h2>7. Indemnification</h2>
@@ -164,15 +167,31 @@ export default function TermsPage() {
           <li>Are NOT a party to any transactions between you and retailers</li>
         </ul>
 
-        <h3>9.2 Google Gemini API</h3>
+        <h3>9.2 Google Gemini API - Third-Party Data Processing</h3>
+        <p className="font-bold">
+          CRITICAL: Your audio, video, and conversation data is processed by Google's Gemini AI, a third-party service.
+        </p>
         <p>
-          Our Service relies on Google's Gemini AI. Google's terms and privacy policy apply to data processed by their API:
+          We do NOT control, store, or have access to how Google handles your data. Google's own terms and privacy policies govern their data practices:
         </p>
         <ul>
           <li>Google Terms of Service: <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">https://policies.google.com/terms</a></li>
-          <li>We are not responsible for Google's data handling, availability, or service quality</li>
-          <li>If Google's API becomes unavailable, the Service may not function</li>
+          <li>Google Privacy Policy: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">https://policies.google.com/privacy</a></li>
+          <li>Gemini API Additional Terms: <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">https://ai.google.dev/gemini-api/terms</a></li>
         </ul>
+        <p>
+          <strong>We cannot control or guarantee:</strong>
+        </p>
+        <ul>
+          <li>How Google processes, stores, or uses your audio/video data</li>
+          <li>How long Google retains your data</li>
+          <li>Whether Google uses your data for AI training or improvement</li>
+          <li>Google's data security practices or breach notifications</li>
+          <li>Google's compliance with privacy laws in your jurisdiction</li>
+        </ul>
+        <p>
+          <strong>For questions about Google's data handling, contact Google directly.</strong> We are not responsible for and have no control over Google's data practices.
+        </p>
 
         <h2>10. Intellectual Property</h2>
         

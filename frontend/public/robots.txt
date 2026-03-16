@@ -1,0 +1,15 @@
+# NoviSpace - robots.txt for novispace.ca
+# Allow all search engines to index the site
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://novispace.ca/sitemap.xml
+
+# Crawl delay (optional - adjust if needed)
+Crawl-delay: 1
+
+# Disallow specific paths (if any in the future)
+# Disallow: /admin/
+# Disallow: /api/

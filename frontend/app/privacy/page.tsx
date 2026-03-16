@@ -87,16 +87,31 @@ export default function PrivacyPolicyPage() {
 
         <h2>5. Third-Party Services</h2>
         
-        <h3>5.1 Google Gemini API</h3>
+        <h3>5.1 Google Gemini API - Third-Party Processing (IMPORTANT)</h3>
+        <p className="font-bold">
+          CRITICAL NOTICE: Your camera, microphone, and conversation data is sent to and processed by Google's Gemini AI, a third-party service over which we have NO CONTROL.
+        </p>
         <p>
-          We use Google's Gemini AI to power our design consultation service. When you use NoviSpace:
+          When you use NoviSpace:
         </p>
         <ul>
-          <li>Your audio, video, and conversation are sent to Google's Gemini API for real-time processing</li>
-          <li>Google may use this data in accordance with their own privacy policy and terms of service</li>
-          <li>Google's privacy policy: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">https://policies.google.com/privacy</a></li>
-          <li>We do not control and are not responsible for Google's data handling practices</li>
+          <li>Your audio, video, and conversation are transmitted in real-time to Google's servers</li>
+          <li>Google processes this data according to their own privacy policy and terms</li>
+          <li>We do NOT know, cannot control, and are NOT responsible for how Google handles your data</li>
+          <li>Google may store, analyze, or use your data for AI model training or improvement</li>
+          <li>Google's data retention policies apply (not ours)</li>
         </ul>
+        <p>
+          <strong>Google's Policies (you should review these):</strong>
+        </p>
+        <ul>
+          <li>Google Privacy Policy: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">https://policies.google.com/privacy</a></li>
+          <li>Google Terms of Service: <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">https://policies.google.com/terms</a></li>
+          <li>Gemini API Terms: <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener noreferrer">https://ai.google.dev/gemini-api/terms</a></li>
+        </ul>
+        <p>
+          <strong>For questions about how Google handles your data, contact Google directly.</strong> We cannot answer questions about Google's data practices.
+        </p>
 
         <h3>5.2 Google Cloud Platform</h3>
         <p>
